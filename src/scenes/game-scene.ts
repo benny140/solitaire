@@ -25,6 +25,7 @@ export class GameScene extends Phaser.Scene {
   private discardPileCards!: Phaser.GameObjects.Image[];
   private foundationPileCards!: Phaser.GameObjects.Image[];
   private tableauContainers!: Phaser.GameObjects.Container[];
+  private draggedStack: Phaser.GameObjects.Image[] = [];
 
   constructor() {
     super({ key: SCENE_KEYS.GAME });
@@ -114,13 +115,23 @@ export class GameScene extends Phaser.Scene {
 
   private handleDragStart = (pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.Image): void => {
     if (gameObject.texture.key === ASSET_KEYS.CARDS) {
-      const tableauPileIndex = gameObject.getData('pileIndex') as number | undefined;
-      if (tableauPileIndex !== undefined) {
-        this.tableauContainers[tableauPileIndex].setDepth(1);
+      const pileIndex = gameObject.getData('pileIndex');
+      const cardIndex = gameObject.getData('cardIndex');
+      if (pileIndex !== undefined && cardIndex !== undefined && this.tableauContainers[pileIndex]) {
+        // Find all cards in the stack (cardIndex and above)
+        this.draggedStack = this.tableauContainers[pileIndex].list.filter(
+          (child: any) => child.getData('cardIndex') >= cardIndex,
+        ) as Phaser.GameObjects.Image[];
+        this.draggedStack.forEach((card) => {
+          card.setDepth(1);
+          card.setAlpha(0.8);
+        });
       } else {
+        // Not part of tableauContainers, just apply to the card itself
+        this.draggedStack = [gameObject];
         gameObject.setDepth(1);
+        gameObject.setAlpha(0.8);
       }
-      gameObject.setAlpha(0.8);
     }
   };
 
@@ -130,20 +141,19 @@ export class GameScene extends Phaser.Scene {
     dragX: number,
     dragY: number,
   ): void => {
-    gameObject.x = dragX;
-    gameObject.y = dragY;
+    // Move all cards in the dragged stack, offset by their position in the stack
+    this.draggedStack.forEach((card, idx) => {
+      card.x = dragX;
+      card.y = dragY + idx * 20; // 20px offset per card
+    });
   };
 
   private handleDragEnd = (pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.Image): void => {
-    if (gameObject.texture.key === ASSET_KEYS.CARDS) {
-      const tableauPileIndex = gameObject.getData('pileIndex') as number | undefined;
-      if (tableauPileIndex !== undefined) {
-        this.tableauContainers[tableauPileIndex].setDepth(0);
-      } else {
-        gameObject.setDepth(0);
-      }
-      gameObject.setAlpha(1);
-      gameObject.setPosition(gameObject.getData('x'), gameObject.getData('y'));
-    }
+    this.draggedStack.forEach((card) => {
+      card.setDepth(0);
+      card.setAlpha(1);
+      card.setPosition(card.getData('x'), card.getData('y'));
+    });
+    this.draggedStack = [];
   };
 }
