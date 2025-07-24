@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
-import { ASSET_KEYS, SCENE_KEYS } from './common';
+import { ASSET_KEYS, CARD_HEIGHT, CARD_WIDTH, SCENE_KEYS } from './common';
 
-const DEBUG = false;
+const DEBUG = true;
 const SCALE = 1.5;
 const CARD_BACK_FRAME = 52;
 const SUIT_FRAME = {
@@ -19,6 +19,9 @@ const DRAW_PILE_X_POSITION = 5;
 const DRAW_PILE_Y_POSITION = 5;
 const TABLEAU_PILE_X_POSITION = 40;
 const TABLEAU_PILE_Y_POSITION = 92;
+const CARD_OFFSET = 20;
+const DRAW_RECTANGLE_HEIGHT = 78;
+const DRAW_RECTANGLE_WIDTH = 56;
 
 export class GameScene extends Phaser.Scene {
   private drawPileCards!: Phaser.GameObjects.Image[];
@@ -45,6 +48,22 @@ export class GameScene extends Phaser.Scene {
     for (let i = 0; i < 3; i++) {
       this.drawPileCards.push(this.createCard(DRAW_PILE_X_POSITION + 5 * i, DISCARD_PILE_Y_POSITION, true));
     }
+    const drawZone = this.add
+      .zone(0, 0, CARD_WIDTH * SCALE + 20, CARD_HEIGHT * SCALE + 12)
+      .setOrigin(0, 0)
+      .setInteractive();
+
+    drawZone.on(Phaser.Input.Events.POINTER_DOWN, () => {
+      this.discardPileCards[0].setFrame(this.discardPileCards[1].frame).setVisible(this.discardPileCards[1].visible);
+      this.discardPileCards[1].setFrame(this.drawPileCards[0].frame).setVisible(true);
+    });
+
+    if (DEBUG) {
+      this.add
+        .rectangle(drawZone.x, drawZone.y, drawZone.width, drawZone.height)
+        .setOrigin(0, 0)
+        .setFillStyle(0xff0000, 0.5);
+    }
   }
 
   /**
@@ -53,7 +72,10 @@ export class GameScene extends Phaser.Scene {
    * @param y The y-coordinate of the box.
    */
   private drawCardLocationBox(x: number, y: number): void {
-    this.add.rectangle(x, y, 56, 78).setOrigin(0, 0).setStrokeStyle(2, 0x000000, 0.5);
+    this.add
+      .rectangle(x, y, DRAW_RECTANGLE_WIDTH, DRAW_RECTANGLE_HEIGHT)
+      .setOrigin(0, 0)
+      .setStrokeStyle(2, 0x000000, 0.5);
   }
 
   /**
@@ -101,7 +123,7 @@ export class GameScene extends Phaser.Scene {
       const tableauContainer = this.add.container(x, TABLEAU_PILE_Y_POSITION, []);
       this.tableauContainers.push(tableauContainer);
       for (let j = 0; j <= i; j++) {
-        const cardObject = this.createCard(0, j * 20, true, j, i);
+        const cardObject = this.createCard(0, j * CARD_OFFSET, true, j, i);
         tableauContainer.add(cardObject);
       }
     }
@@ -144,7 +166,7 @@ export class GameScene extends Phaser.Scene {
     // Move all cards in the dragged stack, offset by their position in the stack
     this.draggedStack.forEach((card, idx) => {
       card.x = dragX;
-      card.y = dragY + idx * 20; // 20px offset per card
+      card.y = dragY + idx * CARD_OFFSET; // 20px offset per card
     });
   };
 
