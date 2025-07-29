@@ -22,6 +22,13 @@ const TABLEAU_PILE_Y_POSITION = 92;
 const CARD_OFFSET = 20;
 const DRAW_RECTANGLE_HEIGHT = 78;
 const DRAW_RECTANGLE_WIDTH = 56;
+type ZoneType = keyof typeof ZONE_TYPE;
+const ZONE_TYPE = {
+  FOUNDATION: 'foundation',
+  TABLEAU: 'tableau',
+  DRAW: 'draw',
+  DISCARD: 'discard',
+} as const;
 
 export class GameScene extends Phaser.Scene {
   private drawPileCards!: Phaser.GameObjects.Image[];
@@ -40,6 +47,7 @@ export class GameScene extends Phaser.Scene {
     this.createFoundationPiles();
     this.createTableauPiles();
     this.createDragEvent();
+    this.createDropZones();
   }
 
   private createDrawPile(): void {
@@ -133,6 +141,7 @@ export class GameScene extends Phaser.Scene {
     this.input.on(Phaser.Input.Events.DRAG_START, this.handleDragStart);
     this.input.on(Phaser.Input.Events.DRAG, this.handleDrag);
     this.input.on(Phaser.Input.Events.DRAG_END, this.handleDragEnd);
+    this.input.on(Phaser.Input.Events.DROP, this.dropEventListener);
   }
 
   private handleDragStart = (pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.Image): void => {
@@ -178,4 +187,53 @@ export class GameScene extends Phaser.Scene {
     });
     this.draggedStack = [];
   };
+
+  private dropEventListener = (
+    pointer: Phaser.Input.Pointer,
+    gameObject: Phaser.GameObjects.Image,
+    dropZone: Phaser.GameObjects.Zone,
+  ): void => {
+    if (dropZone.getData('zoneType') === ZONE_TYPE.FOUNDATION) {
+      this.handleMoveCardToFoundation(gameObject, dropZone);
+    } else if (dropZone.getData('zoneType') === ZONE_TYPE.TABLEAU) {
+      this.handleMoveCardToTableau(gameObject, dropZone);
+    }
+  };
+
+  private handleMoveCardToFoundation(gameObject: Phaser.GameObjects.Image, zone: Phaser.GameObjects.Zone): void {
+    // TODO: Implement logic to move card(s) to the foundation pile.
+    // Example: Remove from tableau, add to foundation, update card position, etc.
+    // You may want to check if the move is valid according to solitaire rules.
+    console.log('Move card to foundation:', gameObject, zone);
+  }
+
+  private handleMoveCardToTableau(gameObject: Phaser.GameObjects.Image, zone: Phaser.GameObjects.Zone): void {
+    // TODO: Implement logic to move card(s) to the tableau pile.
+    // Example: Remove from current pile, add to tableau, update card position, etc.
+    // You may want to check if the move is valid according to solitaire rules.
+    console.log('Move card to tableau:', gameObject, zone.getData('tableauIndex'));
+  }
+
+  private createDropZones(): void {
+    let zone = this.add
+      .zone(350, 0, 270, 85)
+      .setOrigin(0, 0)
+      .setRectangleDropZone(270, 85)
+      .setData({ zoneType: ZONE_TYPE.FOUNDATION });
+    if (DEBUG) {
+      this.add.rectangle(zone.x, zone.y, zone.width, zone.height).setOrigin(0, 0).setFillStyle(0xff0000, 0.5);
+    }
+
+    for (let i = 0; i < 7; i++) {
+      zone = this.add
+        .zone(30 + i * 85, TABLEAU_PILE_Y_POSITION, 75.5, this.scale.height - TABLEAU_PILE_Y_POSITION)
+        .setOrigin(0, 0)
+        .setRectangleDropZone(75.5, this.scale.height - TABLEAU_PILE_Y_POSITION)
+        .setData({ zoneType: ZONE_TYPE.TABLEAU, tableauIndex: i })
+        .setDepth(-1);
+      if (DEBUG) {
+        this.add.rectangle(zone.x, zone.y, zone.width, zone.height).setOrigin(0, 0).setFillStyle(0xff0000, 0.5);
+      }
+    }
+  }
 }
