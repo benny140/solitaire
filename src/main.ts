@@ -21,4 +21,4 @@ window.onload = () => {
   new Phaser.Game(gameConfig);
 };
 
-// https://youtu.be/SYsnCDYiVUo?si=dNqQEtY-WIw3cBuf&t=1339
+// https://youtu.be/6A5EIFiyP58?si=zjTxjMvJHmV0uq-J
