@@ -1,29 +1,29 @@
 export class solitaire {
-  public newGame(): void {
+  newGame(): void {
     console.log('Starting a new game of Solitaire');
   }
 
-  public drawCard(): boolean {
+  drawCard(): boolean {
     return true;
   }
 
-  public shuffleDiscardPile(): boolean {
+  shuffleDiscardPile(): boolean {
     return true;
   }
 
-  public playDiscardPileCardToFoundation(): boolean {
+  playDiscardPileCardToFoundation(): boolean {
     return true;
   }
 
-  public playDiscardPileCardToTableau(targetTableauPileIndex: number): boolean {
+  playDiscardPileCardToTableau(targetTableauPileIndex: number): boolean {
     return true;
   }
 
-  public moveTableauCardToFoundation(sourceTableauPileIndex: number): boolean {
+  moveTableauCardToFoundation(sourceTableauPileIndex: number): boolean {
     return true;
   }
 
-  public moveTableauCardToAnotherTableau(
+  moveTableauCardToAnotherTableau(
     sourceTableauPileIndex: number,
     cardIndex: number,
     targetTableauPileIndex: number,
@@ -31,7 +31,7 @@ export class solitaire {
     return true;
   }
 
-  public flipTopTableauCard(tableauPileIndex: number): boolean {
+  flipTopTableauCard(tableauPileIndex: number): boolean {
     return true;
   }
 }
