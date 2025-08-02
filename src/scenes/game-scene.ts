@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { ASSET_KEYS, CARD_HEIGHT, CARD_WIDTH, SCENE_KEYS } from './common';
+import { solitaire } from '../lib/solitare';
 
 const DEBUG = true;
 const SCALE = 1.5;
@@ -36,9 +37,12 @@ export class GameScene extends Phaser.Scene {
   private foundationPileCards!: Phaser.GameObjects.Image[];
   private tableauContainers!: Phaser.GameObjects.Container[];
   private draggedStack: Phaser.GameObjects.Image[] = [];
+  private solitaire: solitaire;
 
   constructor() {
     super({ key: SCENE_KEYS.GAME });
+    this.solitaire = new solitaire();
+    this.solitaire.newGame();
   }
 
   public create(): void {
@@ -149,6 +153,8 @@ export class GameScene extends Phaser.Scene {
       const pileIndex = gameObject.getData('pileIndex');
       const cardIndex = gameObject.getData('cardIndex');
       if (pileIndex !== undefined && cardIndex !== undefined && this.tableauContainers[pileIndex]) {
+        // Bring the tableau container to the front, so it appears above other elements
+        this.tableauContainers[pileIndex].setDepth(1);
         // Find all cards in the stack (cardIndex and above)
         this.draggedStack = this.tableauContainers[pileIndex].list.filter(
           (child: any) => child.getData('cardIndex') >= cardIndex,
@@ -201,17 +207,92 @@ export class GameScene extends Phaser.Scene {
   };
 
   private handleMoveCardToFoundation(gameObject: Phaser.GameObjects.Image, zone: Phaser.GameObjects.Zone): void {
-    // TODO: Implement logic to move card(s) to the foundation pile.
-    // Example: Remove from tableau, add to foundation, update card position, etc.
-    // You may want to check if the move is valid according to solitaire rules.
-    console.log('Move card to foundation:', gameObject, zone);
+    const pileIndex = gameObject.getData('pileIndex');
+    const cardIndex = gameObject.getData('cardIndex');
+
+    // Check if this is from a tableau pile
+    if (pileIndex !== undefined && cardIndex !== undefined) {
+      // Only allow moving the top card (last card in the stack)
+      const tableauContainer = this.tableauContainers[pileIndex];
+      const topCardIndex = tableauContainer.list.length - 1;
+      const topCard = tableauContainer.list[topCardIndex] as Phaser.GameObjects.Image;
+
+      if (gameObject === topCard) {
+        const success = this.solitaire.moveTableauCardToFoundation(pileIndex);
+        if (success) {
+          // Remove card from tableau and update visual
+          tableauContainer.remove(gameObject);
+          gameObject.destroy();
+
+          // Flip the next card if it exists and is face down
+          if (tableauContainer.list.length > 0) {
+            this.solitaire.flipTopTableauCard(pileIndex);
+            // TODO: Update visual representation of flipped card
+          }
+        }
+      }
+    } else {
+      // Handle discard pile to foundation move
+      const success = this.solitaire.playDiscardPileCardToFoundation();
+      if (success) {
+        // TODO: Update discard pile visual representation
+        console.log('Moved discard card to foundation');
+      }
+    }
   }
 
   private handleMoveCardToTableau(gameObject: Phaser.GameObjects.Image, zone: Phaser.GameObjects.Zone): void {
-    // TODO: Implement logic to move card(s) to the tableau pile.
-    // Example: Remove from current pile, add to tableau, update card position, etc.
-    // You may want to check if the move is valid according to solitaire rules.
-    console.log('Move card to tableau:', gameObject, zone.getData('tableauIndex'));
+    const targetTableauIndex = zone.getData('tableauIndex');
+    const sourcePileIndex = gameObject.getData('pileIndex');
+    const cardIndex = gameObject.getData('cardIndex');
+
+    if (targetTableauIndex === undefined) {
+      console.warn('Target tableau index not found');
+      return;
+    }
+
+    if (sourcePileIndex === targetTableauIndex) {
+      return;
+    }
+
+    // Check if this is from a tableau pile
+    if (sourcePileIndex !== undefined && cardIndex !== undefined) {
+      // Moving from tableau to tableau
+      const success = this.solitaire.moveTableauCardToAnotherTableau(sourcePileIndex, cardIndex, targetTableauIndex);
+
+      if (success) {
+        const sourceContainer = this.tableauContainers[sourcePileIndex];
+        const targetContainer = this.tableauContainers[targetTableauIndex];
+
+        // Move all cards in the dragged stack
+        this.draggedStack.forEach((card, idx) => {
+          sourceContainer.remove(card);
+
+          // Calculate new position in target container
+          const newY = targetContainer.list.length * CARD_OFFSET;
+          card.setData('x', 0);
+          card.setData('y', newY);
+          card.setData('pileIndex', targetTableauIndex);
+          card.setData('cardIndex', targetContainer.list.length);
+
+          card.setPosition(0, newY);
+          targetContainer.add(card);
+        });
+
+        // Flip the top card of source pile if it exists and is face down
+        if (sourceContainer.list.length > 0) {
+          this.solitaire.flipTopTableauCard(sourcePileIndex);
+          // TODO: Update visual representation of flipped card
+        }
+      }
+    } else {
+      // Moving from discard pile to tableau
+      const success = this.solitaire.playDiscardPileCardToTableau(targetTableauIndex);
+      if (success) {
+        // TODO: Update discard pile and tableau visual representations
+        console.log('Moved discard card to tableau:', targetTableauIndex);
+      }
+    }
   }
 
   private createDropZones(): void {
