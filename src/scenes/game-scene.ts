@@ -186,6 +186,11 @@ export class GameScene extends Phaser.Scene {
   };
 
   private handleDragEnd = (pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.Image): void => {
+    // Reset depth for all tableau containers
+    this.tableauContainers.forEach((container) => {
+      container.setDepth(0);
+    });
+
     this.draggedStack.forEach((card) => {
       card.setDepth(0);
       card.setAlpha(1);
