@@ -55,9 +55,9 @@ export class Deck {
     return null; // No more cards to draw
   }
 
-  recycleDiscardPile(): void {
+  recycleDiscardPile(): boolean {
     if (this.#discardPile.length === 0) {
-      return; // Nothing to recycle
+      return false; // Nothing to recycle
     }
 
     this.#drawPile.forEach((card) => card.flip()); // Flip all cards in draw pile face down
@@ -70,9 +70,10 @@ export class Deck {
 
     // Empty the discard pile
     this.#discardPile = [];
+    return true; // Successfully recycled discard pile
   }
 
-  removeCardFromDiscard(targetCard: Card): Card | null {
+  removeCardFromDiscard(targetCard: Card): Card | boolean {
     const cardIndex = this.#discardPile.findIndex(
       (card) => card.suit === targetCard.suit && card.value === targetCard.value,
     );
@@ -82,7 +83,7 @@ export class Deck {
       return this.#discardPile.splice(cardIndex, 1)[0];
     }
 
-    return null; // Card not found in discard pile
+    return false; // Card not found in discard pile
   }
 
   reset(): void {

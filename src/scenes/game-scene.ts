@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { ASSET_KEYS, CARD_HEIGHT, CARD_WIDTH, SCENE_KEYS } from './common';
-import { solitaire } from '../lib/solitare';
+import { Solitaire } from '../lib/solitare';
 
 const DEBUG = true;
 const SCALE = 1.5;
@@ -37,11 +37,11 @@ export class GameScene extends Phaser.Scene {
   #foundationPileCards!: Phaser.GameObjects.Image[];
   #tableauContainers!: Phaser.GameObjects.Container[];
   #draggedStack: Phaser.GameObjects.Image[] = [];
-  #solitaire: solitaire;
+  #solitaire: Solitaire;
 
   constructor() {
     super({ key: SCENE_KEYS.GAME });
-    this.#solitaire = new solitaire();
+    this.#solitaire = new Solitaire();
     this.#solitaire.newGame();
   }
 
