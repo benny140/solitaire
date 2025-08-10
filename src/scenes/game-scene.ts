@@ -89,13 +89,11 @@ export class GameScene extends Phaser.Scene {
 
     this.#drawZone.on(Phaser.Input.Events.POINTER_DOWN, () => {
       if (this.#solitaire.drawCard()) {
-        // Move the top card from the draw pile to the discard pile
-        this.#createDiscardPile();
-        this.#createDrawPileCards();
+        // Animate the top card from the draw pile to the discard pile
+        this.#animateCardFromDrawToDiscard();
       } else if (this.#solitaire.shuffleDiscardPile()) {
-        // Shuffle the discard pile back into the draw pile
-        this.#createDiscardPile();
-        this.#createDrawPileCards();
+        // Animate shuffling the discard pile back into the draw pile
+        this.#animateShuffleDiscardToDrawPile();
       } else {
         return;
       }
@@ -179,6 +177,101 @@ export class GameScene extends Phaser.Scene {
       this.#drawCardLocationBox(x, FOUNDATION_PILE_Y_POSITION);
       const card = this.#createCard(x, FOUNDATION_PILE_Y_POSITION, false).setVisible(false);
       this.#foundationPileCards.push(card);
+    });
+  }
+
+  /**
+   * Animates a card moving from the draw pile to the discard pile
+   */
+  #animateCardFromDrawToDiscard(): void {
+    if (this.#drawPileCards.length === 0) return;
+
+    const topDrawCard = this.#drawPileCards[this.#drawPileCards.length - 1];
+    const discardPile = this.#solitaire.returnDiscardPile();
+    const topDiscardCard = discardPile[discardPile.length - 1];
+
+    // Create a temporary card for animation
+    const animatedCard = this.add.image(
+      topDrawCard.x,
+      topDrawCard.y,
+      ASSET_KEYS.CARDS,
+      topDiscardCard ? SUIT_FRAME[topDiscardCard.suit] + (topDiscardCard.value - 1) : CARD_BACK_FRAME,
+    );
+    animatedCard.setOrigin(0, 0);
+    animatedCard.setScale(SCALE);
+    animatedCard.setDepth(1000);
+
+    // Hide the original top draw card
+    topDrawCard.setVisible(false);
+
+    // Play card place sound
+    this.sound.play(ASSET_KEYS.CARD_PLACE_SOUND);
+
+    // Animate the card movement
+    this.tweens.add({
+      targets: animatedCard,
+      x: DISCARD_PILE_X_POSITION,
+      y: DISCARD_PILE_Y_POSITION,
+      duration: 300,
+      ease: 'Power2',
+      onComplete: () => {
+        // Clean up animated card
+        animatedCard.destroy();
+
+        // Update the piles after animation
+        this.#createDiscardPile();
+        this.#createDrawPileCards();
+      },
+    });
+  }
+
+  /**
+   * Animates shuffling the discard pile back to the draw pile
+   */
+  #animateShuffleDiscardToDrawPile(): void {
+    const discardCards = [...this.#discardPileCards];
+
+    if (discardCards.length === 0) return;
+
+    // Animate each discard card moving to draw pile position
+    discardCards.forEach((card, index) => {
+      this.tweens.add({
+        targets: card,
+        x: DRAW_PILE_X_POSITION,
+        y: DRAW_PILE_Y_POSITION,
+        duration: 200 + index * 50, // Stagger the animations
+        ease: 'Power2',
+        onComplete: () => {
+          if (index === discardCards.length - 1) {
+            // After the last card animation completes, update both piles
+            this.#createDiscardPile();
+            this.#createDrawPileCards();
+          }
+        },
+      });
+    });
+  }
+
+  /**
+   * Generic method to animate a card to a specific position
+   */
+  #animateCardToPosition(
+    card: Phaser.GameObjects.Image,
+    targetX: number,
+    targetY: number,
+    onComplete?: () => void,
+  ): void {
+    this.tweens.add({
+      targets: card,
+      x: targetX,
+      y: targetY,
+      duration: 400,
+      ease: 'Power2',
+      onComplete: () => {
+        if (onComplete) {
+          onComplete();
+        }
+      },
     });
   }
 
@@ -279,23 +372,34 @@ export class GameScene extends Phaser.Scene {
       if (gameObject === topCard) {
         const success = this.#solitaire.moveTableauCardToFoundation(pileIndex);
         if (success) {
-          // Remove card from tableau and update visual
-          tableauContainer.remove(gameObject);
-          gameObject.destroy();
+          // Animate card moving to foundation position
+          const foundationX = FOUNDATION_PILE_X_POSITIONS[0]; // You might need to determine the correct foundation pile
+          this.#animateCardToPosition(gameObject, foundationX, FOUNDATION_PILE_Y_POSITION, () => {
+            // Remove card from tableau and update visual
+            tableauContainer.remove(gameObject);
+            gameObject.destroy();
 
-          // Flip the next card if it exists and is face down
-          if (tableauContainer.list.length > 0) {
-            this.#solitaire.flipTopTableauCard(pileIndex);
-            // TODO: Update visual representation of flipped card
-          }
+            // Flip the next card if it exists and is face down
+            if (tableauContainer.list.length > 0) {
+              this.#solitaire.flipTopTableauCard(pileIndex);
+              // TODO: Update visual representation of flipped card
+            }
+          });
         }
       }
     } else {
       // Handle discard pile to foundation move
       const success = this.#solitaire.playDiscardPileCardToFoundation();
       if (success) {
-        // TODO: Update discard pile visual representation
-        console.log('Moved discard card to foundation');
+        // Animate discard card to foundation
+        if (this.#discardPileCards.length > 0) {
+          const topDiscardCard = this.#discardPileCards[this.#discardPileCards.length - 1];
+          const foundationX = FOUNDATION_PILE_X_POSITIONS[0]; // You might need to determine the correct foundation pile
+          this.#animateCardToPosition(topDiscardCard, foundationX, FOUNDATION_PILE_Y_POSITION, () => {
+            this.#createDiscardPile(); // Refresh discard pile
+            console.log('Moved discard card to foundation');
+          });
+        }
       }
     }
   }
@@ -323,26 +427,44 @@ export class GameScene extends Phaser.Scene {
         const sourceContainer = this.#tableauContainers[sourcePileIndex];
         const targetContainer = this.#tableauContainers[targetTableauIndex];
 
-        // Move all cards in the dragged stack
+        // Animate all cards in the dragged stack to their new positions
         this.#draggedStack.forEach((card, idx) => {
           sourceContainer.remove(card);
 
           // Calculate new position in target container
           const newY = targetContainer.list.length * CARD_OFFSET;
-          card.setData('x', 0);
-          card.setData('y', newY);
-          card.setData('pileIndex', targetTableauIndex);
-          card.setData('cardIndex', targetContainer.list.length);
+          const targetX = TABLEAU_PILE_X_POSITION + targetTableauIndex * 85;
+          const targetCardY = TABLEAU_PILE_Y_POSITION + newY;
 
-          card.setPosition(0, newY);
-          targetContainer.add(card);
+          // Animate the card to its new position
+          this.tweens.add({
+            targets: card,
+            x: targetX,
+            y: targetCardY,
+            duration: 300,
+            ease: 'Power2',
+            onComplete: () => {
+              // Update card data and position
+              card.setData('x', 0);
+              card.setData('y', newY);
+              card.setData('pileIndex', targetTableauIndex);
+              card.setData('cardIndex', targetContainer.list.length);
+
+              // Set final position relative to container
+              card.setPosition(0, newY);
+              targetContainer.add(card);
+
+              // Only flip the top card after the last animation completes
+              if (idx === this.#draggedStack.length - 1) {
+                // Flip the top card of source pile if it exists and is face down
+                if (sourceContainer.list.length > 0) {
+                  this.#solitaire.flipTopTableauCard(sourcePileIndex);
+                  // TODO: Update visual representation of flipped card
+                }
+              }
+            },
+          });
         });
-
-        // Flip the top card of source pile if it exists and is face down
-        if (sourceContainer.list.length > 0) {
-          this.#solitaire.flipTopTableauCard(sourcePileIndex);
-          // TODO: Update visual representation of flipped card
-        }
       }
     } else {
       // Moving from discard pile to tableau
