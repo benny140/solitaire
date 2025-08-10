@@ -1,15 +1,16 @@
 import * as Phaser from 'phaser';
 import { ASSET_KEYS, CARD_HEIGHT, CARD_WIDTH, SCENE_KEYS } from './common';
+import { CardSuit, CardValue } from '../lib/common';
 import { Solitaire } from '../lib/solitare';
 
 const DEBUG = true;
 const SCALE = 1.5;
 const CARD_BACK_FRAME = 52;
 const SUIT_FRAME = {
-  HEART: 26,
-  DIAMOND: 13,
-  CLUB: 0,
-  SPADE: 39,
+  HEARTS: 26,
+  DIAMONDS: 13,
+  CLUBS: 0,
+  SPADES: 39,
 };
 
 const FOUNDATION_PILE_X_POSITIONS = [360, 425, 490, 555];
@@ -37,6 +38,7 @@ export class GameScene extends Phaser.Scene {
   #foundationPileCards!: Phaser.GameObjects.Image[];
   #tableauContainers!: Phaser.GameObjects.Container[];
   #draggedStack: Phaser.GameObjects.Image[] = [];
+  #drawZone!: Phaser.GameObjects.Zone;
   #solitaire: Solitaire;
 
   constructor() {
@@ -54,25 +56,54 @@ export class GameScene extends Phaser.Scene {
     this.#createDropZones();
   }
 
+  #createDrawPileCards(): void {
+    // Destroy existing cards to prevent memory leaks and visual issues
+    if (this.#drawPileCards) {
+      this.#drawPileCards.forEach((card) => card.destroy());
+    }
+
+    const drawPile = this.#solitaire.returnDrawPile();
+    // console.log(drawPile);
+    const maxShift = 15;
+    const shiftPerCard = drawPile.length > 1 ? maxShift / (drawPile.length - 1) : 0;
+
+    this.#drawPileCards = drawPile.map((card, index) => {
+      const x = DRAW_PILE_X_POSITION + shiftPerCard * index;
+      return this.#createCard(x, DRAW_PILE_Y_POSITION, true);
+    });
+
+    // Ensure draw zone stays on top for clicking
+    if (this.#drawZone) {
+      this.#drawZone.setDepth(1000);
+    }
+  }
+
   #createDrawPile(): void {
     this.#drawCardLocationBox(DRAW_PILE_X_POSITION, DRAW_PILE_Y_POSITION);
-    this.#drawPileCards = [];
-    for (let i = 0; i < 3; i++) {
-      this.#drawPileCards.push(this.#createCard(DRAW_PILE_X_POSITION + 5 * i, DISCARD_PILE_Y_POSITION, true));
-    }
-    const drawZone = this.add
+    this.#createDrawPileCards();
+    this.#drawZone = this.add
       .zone(0, 0, CARD_WIDTH * SCALE + 20, CARD_HEIGHT * SCALE + 12)
       .setOrigin(0, 0)
-      .setInteractive();
+      .setInteractive()
+      .setDepth(1000);
 
-    drawZone.on(Phaser.Input.Events.POINTER_DOWN, () => {
-      this.#discardPileCards[0].setFrame(this.#discardPileCards[1].frame).setVisible(this.#discardPileCards[1].visible);
-      this.#discardPileCards[1].setFrame(this.#drawPileCards[0].frame).setVisible(true);
+    this.#drawZone.on(Phaser.Input.Events.POINTER_DOWN, () => {
+      if (this.#solitaire.drawCard()) {
+        // Move the top card from the draw pile to the discard pile
+        this.#createDiscardPile();
+        this.#createDrawPileCards();
+      } else if (this.#solitaire.shuffleDiscardPile()) {
+        // Shuffle the discard pile back into the draw pile
+        this.#createDiscardPile();
+        this.#createDrawPileCards();
+      } else {
+        return;
+      }
     });
 
     if (DEBUG) {
       this.add
-        .rectangle(drawZone.x, drawZone.y, drawZone.width, drawZone.height)
+        .rectangle(this.#drawZone.x, this.#drawZone.y, this.#drawZone.width, this.#drawZone.height)
         .setOrigin(0, 0)
         .setFillStyle(0xff0000, 0.5);
     }
@@ -94,6 +125,11 @@ export class GameScene extends Phaser.Scene {
    * Creates a card game object.
    * @param x The x-coordinate of the card.
    * @param y The y-coordinate of the card.
+   * @param draggable Whether the card is draggable.
+   * @param cardIndex The index of the card in its pile.
+   * @param pileIndex The index of the pile the card belongs to.
+   * @param suit The suit of the card (optional).
+   * @param cardNumber The number of the card (1-13, optional).
    * @returns The created card image.
    */
   #createCard(
@@ -102,21 +138,39 @@ export class GameScene extends Phaser.Scene {
     draggable: boolean,
     cardIndex?: number,
     pileIndex?: number,
+    suit?: CardSuit,
+    cardNumber?: CardValue,
   ): Phaser.GameObjects.Image {
-    const card = this.add.image(x, y, ASSET_KEYS.CARDS, CARD_BACK_FRAME);
+    let frame = CARD_BACK_FRAME;
+
+    // If suit and cardNumber are provided, calculate the correct frame
+    if (suit && cardNumber) {
+      frame = SUIT_FRAME[suit] + (cardNumber - 1);
+    }
+
+    const card = this.add.image(x, y, ASSET_KEYS.CARDS, frame);
     card.setOrigin(0, 0);
     card.setScale(SCALE);
     card.setInteractive({ draggable: draggable });
-    card.setData({ x, y, cardIndex, pileIndex });
+    card.setData({ x, y, cardIndex, pileIndex, suit, cardNumber });
     return card;
   }
 
   #createDiscardPile(): void {
     this.#drawCardLocationBox(DISCARD_PILE_X_POSITION, DISCARD_PILE_Y_POSITION);
-    this.#discardPileCards = [];
-    const bottomCard = this.#createCard(DISCARD_PILE_X_POSITION, DISCARD_PILE_Y_POSITION, true).setVisible(false);
-    const topCard = this.#createCard(DISCARD_PILE_X_POSITION, DISCARD_PILE_Y_POSITION, true).setVisible(false);
-    this.#discardPileCards.push(bottomCard, topCard);
+    this.#discardPileCards = this.#solitaire
+      .returnDiscardPile()
+      .map((card) =>
+        this.#createCard(
+          DISCARD_PILE_X_POSITION,
+          DISCARD_PILE_Y_POSITION,
+          true,
+          undefined,
+          undefined,
+          card.suit,
+          card.value,
+        ),
+      );
   }
 
   #createFoundationPiles(): void {

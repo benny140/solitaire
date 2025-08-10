@@ -1,3 +1,4 @@
+import { Card } from './card';
 import { Deck } from './deck';
 import { FoundationPile } from './foundation-pile';
 import { TableauPile } from './tableau-pile';
@@ -30,6 +31,14 @@ export class Solitaire {
       return false; // No card to draw
     }
     return true;
+  }
+
+  returnDrawPile(): Card[] {
+    return this.#deck.drawPile;
+  }
+
+  returnDiscardPile(): Card[] {
+    return this.#deck.discardPile;
   }
 
   shuffleDiscardPile(): boolean {

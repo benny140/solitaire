@@ -173,12 +173,10 @@ export class TableauPile {
 
   setupInitialLayout(cards: Card[]): void {
     // Standard solitaire setup: 1 card in first pile, 2 in second, etc.
-    let cardIndex = 0;
-
     for (let pileIndex = 0; pileIndex < 7; pileIndex++) {
       for (let cardCount = 0; cardCount <= pileIndex; cardCount++) {
-        if (cardIndex < cards.length) {
-          const card = cards[cardIndex];
+        if (cards.length > 0) {
+          const card = cards.shift()!; // Remove card from the beginning of the deck
 
           // Only flip the top card of each pile face up
           if (cardCount === pileIndex) {
@@ -186,7 +184,6 @@ export class TableauPile {
           }
 
           this.#piles[pileIndex].push(card);
-          cardIndex++;
         }
       }
     }
