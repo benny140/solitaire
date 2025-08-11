@@ -45,6 +45,10 @@ export class Solitaire {
     return this.#deck.recycleDiscardPile();
   }
 
+  returnTableauPile(pileIndex: number): Card[] {
+    return this.#tableau.getPile(pileIndex);
+  }
+
   playDiscardPileCardToFoundation(): boolean {
     const card = this.#deck.discardPile[0];
     if (!card) {

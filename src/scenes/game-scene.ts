@@ -3,7 +3,7 @@ import { ASSET_KEYS, CARD_HEIGHT, CARD_WIDTH, SCENE_KEYS } from './common';
 import { CardSuit, CardValue } from '../lib/common';
 import { Solitaire } from '../lib/solitare';
 
-const DEBUG = true;
+const DEBUG = false;
 const SCALE = 1.5;
 const CARD_BACK_FRAME = 52;
 const SUIT_FRAME = {
@@ -44,7 +44,6 @@ export class GameScene extends Phaser.Scene {
   constructor() {
     super({ key: SCENE_KEYS.GAME });
     this.#solitaire = new Solitaire();
-    this.#solitaire.newGame();
   }
 
   public create(): void {
@@ -128,6 +127,7 @@ export class GameScene extends Phaser.Scene {
    * @param pileIndex The index of the pile the card belongs to.
    * @param suit The suit of the card (optional).
    * @param cardNumber The number of the card (1-13, optional).
+   * @param isFaceUp Whether the card should show face up (optional, defaults to true).
    * @returns The created card image.
    */
   #createCard(
@@ -138,11 +138,12 @@ export class GameScene extends Phaser.Scene {
     pileIndex?: number,
     suit?: CardSuit,
     cardNumber?: CardValue,
+    isFaceUp: boolean = true,
   ): Phaser.GameObjects.Image {
     let frame = CARD_BACK_FRAME;
 
-    // If suit and cardNumber are provided, calculate the correct frame
-    if (suit && cardNumber) {
+    // If suit and cardNumber are provided and card is face up, calculate the correct frame
+    if (suit && cardNumber && isFaceUp) {
       frame = SUIT_FRAME[suit] + (cardNumber - 1);
     }
 
@@ -150,7 +151,7 @@ export class GameScene extends Phaser.Scene {
     card.setOrigin(0, 0);
     card.setScale(SCALE);
     card.setInteractive({ draggable: draggable });
-    card.setData({ x, y, cardIndex, pileIndex, suit, cardNumber });
+    card.setData({ x, y, cardIndex, pileIndex, suit, cardNumber, isFaceUp });
     return card;
   }
 
@@ -167,6 +168,7 @@ export class GameScene extends Phaser.Scene {
           undefined,
           card.suit,
           card.value,
+          card.isFaceUp,
         ),
       );
   }
@@ -281,9 +283,26 @@ export class GameScene extends Phaser.Scene {
       const x = TABLEAU_PILE_X_POSITION + i * 85;
       const tableauContainer = this.add.container(x, TABLEAU_PILE_Y_POSITION, []);
       this.#tableauContainers.push(tableauContainer);
-      for (let j = 0; j <= i; j++) {
-        const cardObject = this.#createCard(0, j * CARD_OFFSET, true, j, i);
-        tableauContainer.add(cardObject);
+
+      try {
+        const tableauPile = this.#solitaire.returnTableauPile(i);
+        if (!tableauPile) continue;
+
+        for (let j = 0; j <= i; j++) {
+          try {
+            const card = tableauPile[j];
+            if (!card) continue;
+
+            const cardObject = this.#createCard(0, j * CARD_OFFSET, true, j, i, card.suit, card.value, card.isFaceUp);
+            tableauContainer.add(cardObject);
+          } catch (error) {
+            console.warn(`Failed to create card at tableau ${i}, position ${j}:`, error);
+            continue;
+          }
+        }
+      } catch (error) {
+        console.warn(`Failed to get tableau pile ${i}:`, error);
+        continue;
       }
     }
   }

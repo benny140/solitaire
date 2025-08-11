@@ -15,6 +15,7 @@ export class Deck {
         cards.push(new Card(suit, value as CardValue));
       }
     }
+    shuffleArray(cards);
     return cards;
   }
 
@@ -88,6 +89,7 @@ export class Deck {
 
   reset(): void {
     // Move all cards back to draw pile
+    this.#cards = Deck.createStandardDeck();
     this.#drawPile = [...this.#cards];
     this.#discardPile = [];
   }
