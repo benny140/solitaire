@@ -443,52 +443,43 @@ export class GameScene extends Phaser.Scene {
       const success = this.#solitaire.moveTableauCardToAnotherTableau(sourcePileIndex, cardIndex, targetTableauIndex);
 
       if (success) {
+        // Play card shove sound
+        this.sound.play(ASSET_KEYS.CARD_SLIDE_SOUND);
+
         const sourceContainer = this.#tableauContainers[sourcePileIndex];
         const targetContainer = this.#tableauContainers[targetTableauIndex];
 
-        // Animate all cards in the dragged stack to their new positions
+        // Move all cards in the dragged stack to their new positions immediately
         this.#draggedStack.forEach((card, idx) => {
           sourceContainer.remove(card);
 
           // Calculate new position in target container
-          const newY = targetContainer.list.length * CARD_OFFSET;
-          const targetX = TABLEAU_PILE_X_POSITION + targetTableauIndex * 85;
-          const targetCardY = TABLEAU_PILE_Y_POSITION + newY;
+          const newY = (targetContainer.list.length + idx) * CARD_OFFSET;
 
-          // Animate the card to its new position
-          this.tweens.add({
-            targets: card,
-            x: targetX,
-            y: targetCardY,
-            duration: 300,
-            ease: 'Power2',
-            onComplete: () => {
-              // Update card data and position
-              card.setData('x', 0);
-              card.setData('y', newY);
-              card.setData('pileIndex', targetTableauIndex);
-              card.setData('cardIndex', targetContainer.list.length);
+          // Update card data and position
+          card.setData('x', 0);
+          card.setData('y', newY);
+          card.setData('pileIndex', targetTableauIndex);
+          card.setData('cardIndex', targetContainer.list.length);
 
-              // Set final position relative to container
-              card.setPosition(0, newY);
-              targetContainer.add(card);
-
-              // Only flip the top card after the last animation completes
-              if (idx === this.#draggedStack.length - 1) {
-                // Flip the top card of source pile if it exists and is face down
-                if (sourceContainer.list.length > 0) {
-                  this.#solitaire.flipTopTableauCard(sourcePileIndex);
-                  // TODO: Update visual representation of flipped card
-                }
-              }
-            },
-          });
+          // Set final position relative to container
+          card.setPosition(0, newY);
+          targetContainer.add(card);
         });
+
+        // Flip the top card of source pile if it exists and is face down
+        if (sourceContainer.list.length > 0) {
+          this.#solitaire.flipTopTableauCard(sourcePileIndex);
+          // TODO: Update visual representation of flipped card
+        }
       }
     } else {
       // Moving from discard pile to tableau
       const success = this.#solitaire.playDiscardPileCardToTableau(targetTableauIndex);
       if (success) {
+        // Play card shove sound
+        this.sound.play(ASSET_KEYS.CARD_SLIDE_SOUND);
+
         // TODO: Update discard pile and tableau visual representations
         console.log('Moved discard card to tableau:', targetTableauIndex);
       }

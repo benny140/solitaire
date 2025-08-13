@@ -9,6 +9,7 @@ export const ASSET_KEYS = {
   CLICK_TO_START: 'CLICK_TO_START',
   CARDS: 'CARDS',
   CARD_PLACE_SOUND: 'CARD_PLACE_SOUND',
+  CARD_SLIDE_SOUND: 'CARD_SLIDE_SOUND',
 } as const;
 
 export const CARD_WIDTH = 37;

@@ -15,6 +15,7 @@ export class PreloadScene extends Phaser.Scene {
       frameHeight: CARD_HEIGHT,
     });
     this.load.audio(ASSET_KEYS.CARD_PLACE_SOUND, 'assets/audio/card-place-1.ogg');
+    this.load.audio(ASSET_KEYS.CARD_SLIDE_SOUND, 'assets/audio/card-slide-1.ogg');
   }
 
   public create(): void {
