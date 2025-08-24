@@ -150,6 +150,9 @@ export class TableauPile {
       return false;
     }
 
+    // After successful move, flip the top card of source pile if it exists and is face down
+    this.flipTopCard(sourceTableauPileIndex);
+
     return true;
   }
 

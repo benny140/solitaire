@@ -50,7 +50,7 @@ export class Solitaire {
   }
 
   playDiscardPileCardToFoundation(): boolean {
-    const card = this.#deck.discardPile[0];
+    const card = this.#deck.discardPile[this.#deck.discardPile.length - 1];
     if (!card) {
       return false; // No card to play
     }
@@ -66,7 +66,7 @@ export class Solitaire {
   }
 
   playDiscardPileCardToTableau(targetTableauPileIndex: number): boolean {
-    const card = this.#deck.discardPile[0];
+    const card = this.#deck.discardPile[this.#deck.discardPile.length - 1];
     if (!card) {
       return false; // No card to play
     }

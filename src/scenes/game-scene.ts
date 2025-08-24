@@ -307,6 +307,49 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Refreshes the tableau piles by clearing existing containers and recreating them
+   * with the current state from the solitaire game logic.
+   */
+  #refreshTableauPiles(): void {
+    // Destroy existing tableau containers and their children
+    if (this.#tableauContainers) {
+      this.#tableauContainers.forEach((container) => {
+        container.destroy();
+      });
+    }
+
+    // Recreate tableau piles with current game state
+    this.#tableauContainers = [];
+    for (let i = 0; i < 7; i++) {
+      const x = TABLEAU_PILE_X_POSITION + i * 85;
+      const tableauContainer = this.add.container(x, TABLEAU_PILE_Y_POSITION, []);
+      this.#tableauContainers.push(tableauContainer);
+
+      try {
+        const tableauPile = this.#solitaire.returnTableauPile(i);
+        if (!tableauPile) continue;
+
+        // Create cards for all cards in the current pile
+        for (let j = 0; j < tableauPile.length; j++) {
+          try {
+            const card = tableauPile[j];
+            if (!card) continue;
+
+            const cardObject = this.#createCard(0, j * CARD_OFFSET, true, j, i, card.suit, card.value, card.isFaceUp);
+            tableauContainer.add(cardObject);
+          } catch (error) {
+            console.warn(`Failed to create card at tableau ${i}, position ${j}:`, error);
+            continue;
+          }
+        }
+      } catch (error) {
+        console.warn(`Failed to get tableau pile ${i}:`, error);
+        continue;
+      }
+    }
+  }
+
   #createDragEvent(): void {
     this.input.on(Phaser.Input.Events.DRAG_START, this.#handleDragStart);
     this.input.on(Phaser.Input.Events.DRAG, this.#handleDrag);
@@ -394,15 +437,8 @@ export class GameScene extends Phaser.Scene {
           // Animate card moving to foundation position
           const foundationX = FOUNDATION_PILE_X_POSITIONS[0]; // You might need to determine the correct foundation pile
           this.#animateCardToPosition(gameObject, foundationX, FOUNDATION_PILE_Y_POSITION, () => {
-            // Remove card from tableau and update visual
-            tableauContainer.remove(gameObject);
-            gameObject.destroy();
-
-            // Flip the next card if it exists and is face down
-            if (tableauContainer.list.length > 0) {
-              this.#solitaire.flipTopTableauCard(pileIndex);
-              // TODO: Update visual representation of flipped card
-            }
+            // Refresh tableau piles to reflect the updated game state
+            this.#refreshTableauPiles();
           });
         }
       }
@@ -446,32 +482,8 @@ export class GameScene extends Phaser.Scene {
         // Play card shove sound
         this.sound.play(ASSET_KEYS.CARD_SLIDE_SOUND);
 
-        const sourceContainer = this.#tableauContainers[sourcePileIndex];
-        const targetContainer = this.#tableauContainers[targetTableauIndex];
-
-        // Move all cards in the dragged stack to their new positions immediately
-        this.#draggedStack.forEach((card, idx) => {
-          sourceContainer.remove(card);
-
-          // Calculate new position in target container
-          const newY = (targetContainer.list.length + idx) * CARD_OFFSET;
-
-          // Update card data and position
-          card.setData('x', 0);
-          card.setData('y', newY);
-          card.setData('pileIndex', targetTableauIndex);
-          card.setData('cardIndex', targetContainer.list.length);
-
-          // Set final position relative to container
-          card.setPosition(0, newY);
-          targetContainer.add(card);
-        });
-
-        // Flip the top card of source pile if it exists and is face down
-        if (sourceContainer.list.length > 0) {
-          this.#solitaire.flipTopTableauCard(sourcePileIndex);
-          // TODO: Update visual representation of flipped card
-        }
+        // Refresh tableau piles to reflect the updated game state
+        this.#refreshTableauPiles();
       }
     } else {
       // Moving from discard pile to tableau
@@ -480,10 +492,14 @@ export class GameScene extends Phaser.Scene {
         // Play card shove sound
         this.sound.play(ASSET_KEYS.CARD_SLIDE_SOUND);
 
-        // TODO: Update discard pile and tableau visual representations
+        // Refresh discard pile and tableau to reflect the updated game state
+        this.#createDiscardPile();
+        this.#refreshTableauPiles();
+
         console.log('Moved discard card to tableau:', targetTableauIndex);
       }
     }
+    this.#refreshTableauPiles();
   }
 
   #createDropZones(): void {
